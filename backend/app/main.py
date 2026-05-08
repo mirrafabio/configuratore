@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -9,23 +8,51 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from app.database import init_db
+from app.database import init_db, AsyncSessionLocal
 from app.routers import vehicles, positions, trips, alerts, dashboard
-from app.teltonika.tcp_server import start_tcp_server
 from app.ws_manager import ws_manager
 
-STATIC_DIR = Path(__file__).parent.parent.parent / "frontend" / "dist"
-
 logging.basicConfig(level=logging.INFO)
+
+# Frontend dist: works both locally and on Render
+_here = Path(__file__).parent          # backend/app/
+STATIC_DIR = (_here / ".." / ".." / "frontend" / "dist").resolve()
+
+TELTONIKA_ENABLED = os.getenv("TELTONIKA_TCP_ENABLED", "true").lower() == "true"
+
+
+async def _seed_if_empty():
+    from sqlalchemy import select, func
+    from app.models import Vehicle
+    async with AsyncSessionLocal() as db:
+        count = (await db.execute(select(func.count()).select_from(Vehicle))).scalar()
+        if count == 0:
+            demo = [
+                {"name": "Furgone Milano 1", "plate": "MI123AB", "model": "Fiat Ducato", "driver": "Marco Rossi", "imei": "352094081234560"},
+                {"name": "Furgone Milano 2", "plate": "MI456CD", "model": "Mercedes Sprinter", "driver": "Luca Bianchi", "imei": "352094081234561"},
+                {"name": "Auto Commerciale", "plate": "TO789EF", "model": "VW Transporter", "driver": "Sara Verdi", "imei": "352094081234562"},
+                {"name": "Camion Roma", "plate": "RM321GH", "model": "Iveco Daily", "driver": None, "imei": "352094081234563"},
+                {"name": "Veicolo Frigorifero", "plate": "NA654IJ", "model": "Renault Master", "driver": "Paolo Neri", "imei": "352094081234564"},
+            ]
+            for v in demo:
+                db.add(Vehicle(**v))
+            await db.commit()
+            logging.getLogger("fleet").info("Seeded %d demo vehicles", len(demo))
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
-    tcp_server = await start_tcp_server(host="0.0.0.0", port=5027)
-    async with tcp_server:
+    await _seed_if_empty()
+    if TELTONIKA_ENABLED:
+        from app.teltonika.tcp_server import start_tcp_server
+        tcp_port = int(os.getenv("TELTONIKA_PORT", "5027"))
+        tcp_server = await start_tcp_server(host="0.0.0.0", port=tcp_port)
+        async with tcp_server:
+            yield
+        tcp_server.close()
+    else:
         yield
-    tcp_server.close()
 
 
 app = FastAPI(
@@ -65,14 +92,14 @@ async def health():
     return {"status": "ok"}
 
 
-# Serve frontend static files if the dist directory exists
+# Serve frontend static files when dist directory exists
 if STATIC_DIR.exists():
-    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+    app.mount("/assets", StaticFiles(directory=str(STATIC_DIR / "assets")), name="assets")
 
     @app.get("/vite.svg")
     async def vite_svg():
-        return FileResponse(STATIC_DIR / "vite.svg")
+        return FileResponse(str(STATIC_DIR / "vite.svg"))
 
     @app.get("/{full_path:path}")
-    async def serve_spa(full_path: str):
-        return FileResponse(STATIC_DIR / "index.html")
+    async def serve_spa(_: str):
+        return FileResponse(str(STATIC_DIR / "index.html"))
