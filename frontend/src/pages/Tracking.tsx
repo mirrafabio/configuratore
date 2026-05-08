@@ -52,7 +52,6 @@ export function TrackingPage() {
           <FleetMap
             vehicles={vehicles}
             positions={latest}
-            selectedVehicle={selected}
             trail={selected ? trail : undefined}
             onVehicleClick={(v) =>
               setSelected((prev) => (prev?.id === v.id ? null : v))

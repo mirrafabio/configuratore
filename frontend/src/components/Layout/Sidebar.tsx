@@ -5,7 +5,6 @@ import {
   MapPin,
   Route,
   Bell,
-  Settings,
 } from "lucide-react";
 import clsx from "clsx";
 

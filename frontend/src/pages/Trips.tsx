@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Route, Clock, Gauge, Navigation } from "lucide-react";
-import { formatDistanceToNow, format } from "date-fns";
+import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Header } from "@/components/Layout/Header";
 import { api } from "@/services/api";

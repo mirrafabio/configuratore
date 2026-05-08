@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -45,7 +45,6 @@ function makeIcon(status: Vehicle["status"]) {
 interface Props {
   vehicles: Vehicle[];
   positions: Position[];
-  selectedVehicle?: Vehicle | null;
   trail?: Position[];
   onVehicleClick?: (v: Vehicle) => void;
 }
@@ -66,7 +65,6 @@ function FitBounds({ positions }: { positions: Position[] }) {
 export function FleetMap({
   vehicles,
   positions,
-  selectedVehicle,
   trail,
   onVehicleClick,
 }: Props) {

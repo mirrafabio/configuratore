@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCheck, Check } from "lucide-react";
+import { CheckCheck, Check } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Header } from "@/components/Layout/Header";
