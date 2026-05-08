@@ -1,14 +1,20 @@
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from app.database import init_db
 from app.routers import vehicles, positions, trips, alerts, dashboard
 from app.teltonika.tcp_server import start_tcp_server
 from app.ws_manager import ws_manager
+
+STATIC_DIR = Path(__file__).parent.parent.parent / "frontend" / "dist"
 
 logging.basicConfig(level=logging.INFO)
 
@@ -57,3 +63,16 @@ async def websocket_endpoint(ws: WebSocket):
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+# Serve frontend static files if the dist directory exists
+if STATIC_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+
+    @app.get("/vite.svg")
+    async def vite_svg():
+        return FileResponse(STATIC_DIR / "vite.svg")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        return FileResponse(STATIC_DIR / "index.html")
